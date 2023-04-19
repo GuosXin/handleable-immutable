@@ -13,12 +13,16 @@ const state = {
     }
 }
 const immer = createImmutable(state)
-let t = immer.a.b
-immer.a.c = t
+// let t = immer.a.b
+// immer.a.c = t
+
+// let t = immer.a.b
+// t[0].d = 123
+
+immer.a.b.push(123)
+immer.a.c = immer
 
 console.log(immer, finishImmutable(immer), state)
-
-t[0].d = 123
 
 
 // console.time('create')

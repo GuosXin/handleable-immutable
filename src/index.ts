@@ -153,7 +153,7 @@ export function finishImmutable(proxy: any){
         getterLog.forEach((item: any) => {
             let { receiver, prop } = item
             while(receiver){
-                if(receiver.__parent__){
+                if(receiver[prop]){
                     // if(receiver.__parent__[receiver.__prop__].__target__ !== receiver.__target__){
                     //     // 说明已经修复过
                     //     break
