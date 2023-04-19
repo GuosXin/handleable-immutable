@@ -39,6 +39,7 @@ type CreateImmutable = (base: any, handler?: ImmutableHandler) => any
 type CreateProxy = (base: any, handler?: ImmutableHandler, parent?: any) => any
 export let createImmutable: CreateImmutable = function(base, handler = { set: () => {} }){
     let getterLog: Array<any> = []
+    let setterLog: Array<any> = []
 
     let createProxy: CreateProxy = function(base, handler, parent = null){
         if(isNeedToCopy(base)){
@@ -54,6 +55,9 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
                     if(prop === '__getterLog__'){
                         return getterLog
                     }
+                    if(prop === '__setterLog__'){
+                        return setterLog
+                    }
                     if(prop === '__target__'){
                         return target
                     }
@@ -65,14 +69,15 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
                     }
                     if(isNeedToCopy(target[prop]) && !target[prop].__isImmutable__){
                         let p = { prop, receiver }
+                        getterLog.push(p)
                         target[prop] = createProxy(target[prop], handler, p)
-                        getterLog.push(receiver[prop])
                     }
                     return Reflect.get(target, prop, receiver)
                 },
-                set: (target, prop, newVal, receiver) => {
-                    handler!.set!(target, prop, newVal, receiver)
-                    return Reflect.set(target, prop, newVal, receiver)
+                set: (target, prop, newValue, receiver) => {
+                    setterLog.push({receiver, prop, newValue})
+                    handler!.set!(target, prop, newValue, receiver)
+                    return Reflect.set(target, prop, newValue, receiver)
                 }
             })
             return proxy
@@ -86,10 +91,21 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
         base,
         proxy: createProxy(base, handler)
     }
-    const proxy = new Proxy(source, {
-        get: function(target, prop, receiver){
+    // @ts-ignore
+    const { proxy, revoke } = Proxy.revocable(source, {
+        // @ts-ignore
+        get: function(target, prop){
+            if(prop === '__isRoot__'){
+                return true
+            }
+            if(prop === '__base__'){
+                return target.base
+            }
             if(prop === '__proxy__'){
                 return target.proxy
+            }
+            if(prop === '__revoke__'){
+                return revoke
             }
             return target.proxy[prop]
         },
@@ -108,19 +124,50 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
  */
 export function finishImmutable(proxy: any){
     if(proxy.__isImmutable__){
+        let setterLog = proxy.__setterLog__
         let getterLog = proxy.__getterLog__
-        getterLog.forEach((item: any) => {
-            while(item){
-                // 此处待优化
-                if(item.__parent__){
-                    item.__parent__[item.__prop__] = item.__target__
+
+        setterLog.forEach((item: any) => {
+            let { receiver, prop, newValue } = item
+            if(newValue.__isRoot__){
+                receiver[prop] = newValue.__proxy__
+            }else if(newValue.__isImmutable__){
+                receiver[prop] = newValue.__target__
+            }
+            /** 待优化 start **/
+            while(receiver){
+                if(receiver.__parent__){
+                    // if(receiver.__parent__[receiver.__prop__].__target__ !== receiver.__target__){
+                    //     // 说明已经修复过
+                    //     break
+                    // }
+                    receiver.__parent__[receiver.__prop__] = receiver.__target__
                 }else{
-                    proxy.proxy = item.__target__
+                    proxy.proxy = receiver.__target__
                 }
-                item = item.__parent__
+                receiver = receiver.__parent__
+            }
+            /** 待优化 end **/
+        })
+
+        getterLog.forEach((item: any) => {
+            let { receiver, prop } = item
+            while(receiver){
+                if(receiver.__parent__){
+                    // if(receiver.__parent__[receiver.__prop__].__target__ !== receiver.__target__){
+                    //     // 说明已经修复过
+                    //     break
+                    // }
+                    receiver[prop] = receiver[prop].__target__
+                }else{
+                    proxy.proxy = receiver.__target__
+                }
+                receiver = receiver.__parent__
             }
         })
-        return proxy.__proxy__
+        const result = proxy.__proxy__
+        proxy.__revoke__()
+        return result
     }else{
         return proxy
     }

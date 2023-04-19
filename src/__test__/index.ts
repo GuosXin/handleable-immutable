@@ -12,8 +12,9 @@ const state = {
     }
 }
 const immer = createImmutable(state)
-
-immer.a.b.push(123)
-immer.a.c = immer
+let t = immer.a.b
+immer.a.c = t
 
 console.log(immer, finishImmutable(immer), state)
+
+t[0].d = 123
