@@ -1,0 +1,29 @@
+{
+  "name": "handleable-immutable",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "webpack serve --open",
+    "build": "webpack"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GuosXin/handleable-immutable.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/GuosXin/handleable-immutable/issues"
+  },
+  "homepage": "https://github.com/GuosXin/handleable-immutable#readme",
+  "devDependencies": {
+    "html-webpack-plugin": "^5.5.1",
+    "ts-loader": "^9.4.2",
+    "typescript": "^5.0.4",
+    "webpack": "^5.79.0",
+    "webpack-cli": "^5.0.1",
+    "webpack-dev-server": "^4.13.3"
+  }
+}
