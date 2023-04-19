@@ -36,35 +36,41 @@ type ImmutableHandler = {
     set?: (target: any, p: string | symbol, newValue: any, receiver: any) => void
 }
 type CreateImmutable = (base: any, handler?: ImmutableHandler) => any
+type CreateProxy = (base: any, handler?: ImmutableHandler, parent?: any) => any
 export let createImmutable: CreateImmutable = function(base, handler = { set: () => {} }){
-    let source: any;
-    let path: any;
+    let getterLog: Array<any> = []
 
-    let createProxy: CreateImmutable = function(base, handler){
+    let createProxy: CreateProxy = function(base, handler, parent = null){
         if(isNeedToCopy(base)){
-            if(!source){
-                // 初始化
-                source = shallowCopy(base)
-                path = source
-            }
             base = shallowCopy(base)
             const proxy = new Proxy(base, {
                 get: (target, prop, receiver) => {
-                    if(prop === '__getSource__'){
-                        return source
-                    }
                     if(prop === '__isImmutable__'){
                         return true
                     }
+                    if(prop === '__parent__'){
+                        return parent ? parent.receiver : null
+                    }
+                    if(prop === '__getterLog__'){
+                        return getterLog
+                    }
+                    if(prop === '__target__'){
+                        return target
+                    }
+                    if(prop === '__prop__'){
+                        return parent ? parent.prop : null
+                    }
+                    if(prop === '__receiver__'){
+                        return receiver
+                    }
                     if(isNeedToCopy(target[prop]) && !target[prop].__isImmutable__){
-                        path[prop] = shallowCopy(target[prop])
-                        path = path[prop]
-                        target[prop] = createProxy(target[prop], handler)
+                        let p = { prop, receiver }
+                        target[prop] = createProxy(target[prop], handler, p)
+                        getterLog.push(receiver[prop])
                     }
                     return Reflect.get(target, prop, receiver)
                 },
                 set: (target, prop, newVal, receiver) => {
-                    path[prop] = newVal
                     handler!.set!(target, prop, newVal, receiver)
                     return Reflect.set(target, prop, newVal, receiver)
                 }
@@ -75,7 +81,24 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
         }
     }
 
-    return createProxy(base, handler)
+    // 定义第一层
+    const source: any = {
+        base,
+        proxy: createProxy(base, handler)
+    }
+    const proxy = new Proxy(source, {
+        get: function(target, prop, receiver){
+            if(prop === '__proxy__'){
+                return target.proxy
+            }
+            return target.proxy[prop]
+        },
+        set: function(target, prop, newVal, receiver){
+            return Reflect.set(target, prop, newVal, receiver)
+        }
+    })
+
+    return proxy
 }
 
 /**
@@ -85,7 +108,19 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
  */
 export function finishImmutable(proxy: any){
     if(proxy.__isImmutable__){
-        return proxy.__getSource__
+        let getterLog = proxy.__getterLog__
+        getterLog.forEach((item: any) => {
+            while(item){
+                // 此处待优化
+                if(item.__parent__){
+                    item.__parent__[item.__prop__] = item.__target__
+                }else{
+                    proxy.proxy = item.__target__
+                }
+                item = item.__parent__
+            }
+        })
+        return proxy.__proxy__
     }else{
         return proxy
     }
