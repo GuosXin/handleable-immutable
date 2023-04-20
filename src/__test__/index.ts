@@ -9,8 +9,9 @@ let obj = {
 const state = {
     a: {
         b: [obj],
-        c: obj
-    }
+        c: obj,
+        proxy: 1
+    },
 }
 const immer = createImmutable(state)
 // let t = immer.a.b
@@ -19,10 +20,16 @@ const immer = createImmutable(state)
 // let t = immer.a.b
 // t[0].d = 123
 
-immer.a.b.push(123)
-immer.a.c = immer
+// immer.a.b.push(123)
+// immer.a.b = 123
+// immer.a.c = immer
 
-console.log(immer, finishImmutable(immer), state)
+// console.log(immer, finishImmutable(immer), state)
+// let t = immer.a
+// console.log(immer, immer.proxy, immer.a.b, t.base, immer.isImmutable)
+immer.a.b.push(123)
+console.log(immer, immer.a.proxy, immer.a.b)
+
 
 
 // console.time('create')
