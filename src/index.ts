@@ -39,10 +39,11 @@ type CreateImmutable = (base: any, handler?: ImmutableHandler, parent?: any) => 
 type CreateProxy = (base: any, handler?: ImmutableHandler) => any
 const getIsImmutable = Symbol('isImmutable')
 const getBase = Symbol('base')
-const getTarget = Symbol('target')
-const getProxy = Symbol('proxy')
+const getCopy = Symbol('copy')
+const getParent = Symbol('parent')
+const getProp = Symbol('prop')
 const getRevoke = Symbol('revoke')
-export let createImmutable: CreateImmutable = function(base, handler = { set: () => {} }, parent = null){
+export let createImmutable: CreateImmutable = function(base, handler = { set: () => {} }, parent = { receiver: null, prop: null }){
     if(!isNeedToCopy(base)){
         return base
     }
@@ -51,7 +52,7 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
         const { proxy, revoke } = Proxy.revocable(base, {
             get: function(target, prop, receiver){
                 if(target.hasOwnProperty(prop) && !target[prop][getIsImmutable]){
-                    const p = { base: receiver[getBase], prop: prop }
+                    const p = { receiver: receiver, prop: prop }
                     target[prop] = createImmutable(target[prop], handler, p)
                 }
                 return Reflect.get(target, prop, receiver)
@@ -65,10 +66,12 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
 
     const copy = shallowCopy(base)
     const immutable = createProxy(copy, handler)
-    console.log(parent, copy)
     const source = {
         isImmutable: true,
         base,
+        copy: shallowCopy(base),
+        parent: parent.receiver,
+        prop: parent.prop,
         proxy: immutable.proxy,
         revoke: immutable.revoke
     }
@@ -80,9 +83,32 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
             if(prop === getBase){
                 return target.base
             }
+            if(prop === getCopy){
+                return target.copy
+            }
+            if(prop === getParent){
+                return target.parent
+            }
+            if(prop === getProp){
+                return target.prop
+            }
+            if(prop === getRevoke){
+                return target.revoke
+            }
             return Reflect.get(target.proxy, prop, receiver)
         },
         set: function(target, prop, newValue, receiver){
+            newValue = getClone(newValue)
+            if(prop === getCopy){
+                return Reflect.set(target, 'copy', newValue)
+            }
+            // 对应修改copy的值
+            receiver[getCopy][prop] = newValue
+            let obj = receiver
+            while(obj[getParent]){
+                obj[getParent][getCopy] = Object.assign(obj[getParent][getCopy], { [obj[getProp]]: obj[getCopy] })
+                obj = obj[getParent]
+            }
             return Reflect.set(target.proxy, prop, newValue)
         }
     })
@@ -95,9 +121,15 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
  * @param proxy 
  * @returns 
  */
-export function finishImmutable(proxy: any){
-    if(!isNeedToCopy(proxy)){
-        return proxy
+export function getClone(proxy: any){
+    if(proxy[getIsImmutable]){
+        return proxy[getCopy]
     }
-
+    return proxy
 }
+
+/**
+ * 结束(销毁)不可变数据
+ * @param proxy 
+ */
+export function finishImmutable(proxy: any){}
