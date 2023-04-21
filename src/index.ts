@@ -32,18 +32,19 @@ function shallowCopy(value: any){
  * @param {*} handler 
  * @returns 
  */
-type ImmutableHandler = {
+export type ImmutableHandler = {
+    get?: (target: any, p: string | symbol, receiver: any) => void
     set?: (target: any, p: string | symbol, newValue: any, receiver: any) => void
 }
-type CreateImmutable = (base: any, handler?: ImmutableHandler, parent?: any) => any
-type CreateProxy = (base: any, handler?: ImmutableHandler) => any
+export type CreateImmutable = (base: any, handler?: ImmutableHandler, parent?: any) => any
+export type CreateProxy = (base: any, handler?: ImmutableHandler) => any
 const getIsImmutable = Symbol('isImmutable')
 const getBase = Symbol('base')
 const getCopy = Symbol('copy')
 const getParent = Symbol('parent')
 const getProp = Symbol('prop')
 const getRevoke = Symbol('revoke')
-export let createImmutable: CreateImmutable = function(base, handler = { set: () => {} }, parent = { receiver: null, prop: null }){
+export let createImmutable: CreateImmutable = function(base, handler = { set: () => {}, get: () => {} }, parent = { receiver: null, prop: null }){
     if(!isNeedToCopy(base)){
         return base
     }
@@ -55,9 +56,11 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
                     const p = { receiver: receiver, prop: prop }
                     target[prop] = createImmutable(target[prop], handler, p)
                 }
+                handler && handler.get && handler.get(target, prop, receiver)
                 return Reflect.get(target, prop, receiver)
             },
             set: function(target, prop, newValue, receiver){
+                handler && handler.set && handler.set(target, prop, newValue, receiver)
                 return Reflect.set(target, prop, newValue)
             }
         })

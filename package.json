@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "webpack serve --open",
-    "build": "webpack"
+    "test": "webpack serve --config build/webpack.dev.js --open",
+    "build": "webpack --config build/webpack.prod.js"
   },
   "repository": {
     "type": "git",
