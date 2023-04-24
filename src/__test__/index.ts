@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createImmutable, getClone} from '../index'
+import { createImmutable, getImmutableCopy, setHandler} from '../index'
 
 let obj = {
     d: {
@@ -33,13 +33,24 @@ const state = {
 
 
 const immer = createImmutable(state, {
+  get(){
+    console.log('触发getter')
+  },
   set(){
     console.log('触发setter')
   }
 })
-let t = immer.a.b
-t.d = 123
-console.log(immer, getClone(immer), state)
+immer.a.b
+setHandler(immer, {
+  get(){
+    console.log('触发setHandle的给getter')
+  },
+  set(){
+    console.log('触发setHandle的setter')
+  }
+})
+immer.a = 1
+// console.log(immer, getImmutableCopy(immer), state)
 
 // console.time('create')
 // const dataSource = Object.fromEntries(
