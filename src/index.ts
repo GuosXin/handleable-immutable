@@ -1,3 +1,12 @@
+const getIsImmutable = Symbol('isImmutable')
+const getBase = Symbol('base')
+const getCopy = Symbol('copy')
+const getParent = Symbol('parent')
+const getProp = Symbol('prop')
+const getRevoke = Symbol('revoke')
+const getGetter = Symbol('getter')
+const getSetter = Symbol('setter')
+
 /**
  * 判断是否需要进行拷贝
  * @param {*} value 
@@ -8,6 +17,7 @@ function isNeedToCopy(value: any){
     let referenceType = ['object']
     let type = typeof value
     if(value === null) return false
+    if(value[getIsImmutable]) return false
     if(baseType.includes(type)) return false
     if(referenceType.includes(type)) return true
 }
@@ -38,12 +48,6 @@ export type ImmutableHandler = {
 }
 export type CreateImmutable = (base: any, handler?: ImmutableHandler, parent?: any) => any
 export type CreateProxy = (base: any, handler?: ImmutableHandler) => any
-const getIsImmutable = Symbol('isImmutable')
-const getBase = Symbol('base')
-const getCopy = Symbol('copy')
-const getParent = Symbol('parent')
-const getProp = Symbol('prop')
-const getRevoke = Symbol('revoke')
 export let createImmutable: CreateImmutable = function(base, handler = { set: () => {}, get: () => {} }, parent = { receiver: null, prop: null }){
     if(!isNeedToCopy(base)){
         return base
@@ -56,11 +60,9 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
                     const p = { receiver: receiver, prop: prop }
                     target[prop] = createImmutable(target[prop], handler, p)
                 }
-                handler && handler.get && handler.get(target, prop, receiver)
                 return Reflect.get(target, prop, receiver)
             },
             set: function(target, prop, newValue, receiver){
-                handler && handler.set && handler.set(target, prop, newValue, receiver)
                 return Reflect.set(target, prop, newValue)
             }
         })
@@ -76,7 +78,9 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
         parent: parent.receiver,
         prop: parent.prop,
         proxy: immutable.proxy,
-        revoke: immutable.revoke
+        revoke: immutable.revoke,
+        getter: handler && handler.get || null,
+        setter: handler && handler.set || null
     }
     const { proxy, revoke } = Proxy.revocable(source, {
         get: function(target, prop, receiver){
@@ -98,9 +102,24 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
             if(prop === getRevoke){
                 return target.revoke
             }
+            if(prop === getGetter){
+                return target.getter
+            }
+            if(prop === getSetter){
+                return target.setter
+            }
+            // 执行getter
+            receiver[getGetter] && receiver[getGetter](target, prop, receiver)
             return Reflect.get(target.proxy, prop, receiver)
         },
         set: function(target, prop, newValue, receiver){
+            if(prop === getGetter){
+                return Reflect.set(target, 'getter', newValue)
+            }
+            if(prop === getSetter){
+                return Reflect.set(target, 'setter', newValue)
+            }
+            // 值为不可变数据类型时，需要转换
             newValue = getClone(newValue)
             if(prop === getCopy){
                 return Reflect.set(target, 'copy', newValue)
@@ -112,6 +131,8 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
                 obj[getParent][getCopy] = Object.assign(obj[getParent][getCopy], { [obj[getProp]]: obj[getCopy] })
                 obj = obj[getParent]
             }
+            // 执行setter
+            receiver[getSetter] && receiver[getSetter](target, prop, newValue, receiver)
             return Reflect.set(target.proxy, prop, newValue)
         }
     })
@@ -135,4 +156,14 @@ export function getClone(proxy: any){
  * 结束(销毁)不可变数据
  * @param proxy 
  */
-export function finishImmutable(proxy: any){}
+// export function finishImmutable(proxy: any){}
+
+/**
+ * 注入getter、setter
+ */
+export function resetHandler(proxy: any, handler = { set: () => {}, get: () => {} }){
+    if(proxy[getIsImmutable]){
+        proxy[getGetter] = handler && handler.get || proxy[getGetter]
+        proxy[getSetter] = handler && handler.set || proxy[getSetter]
+    }
+}
