@@ -45,7 +45,11 @@ export type ImmutableHandler = {
     get?: (target: any, p: string | symbol, receiver: any) => void
     set?: (target: any, p: string | symbol, newValue: any, receiver: any) => void
 }
-export type CreateImmutable = (base: any, handler?: ImmutableHandler, parent?: any) => any
+export type Parent = {
+    receiver: any
+    prop: any
+}
+export type CreateImmutable = (base: any, handler?: ImmutableHandler, parent?: Parent) => any
 export type CreateProxy = (base: any, handler?: ImmutableHandler) => any
 export let createImmutable: CreateImmutable = function(base, handler = { set: () => {}, get: () => {} }, parent = { receiver: null, prop: null }){
     if(!isNeedToCopy(base)){
