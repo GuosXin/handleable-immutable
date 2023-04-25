@@ -159,6 +159,18 @@ export function getImmutableBase(proxy: any){
 }
 
 /**
+ * 获取父节点
+ * @param proxy 
+ * @returns 
+ */
+export function getImmutableParent(proxy: any){
+    if(proxy[getIsImmutable]){
+        return proxy[getParent]
+    }
+    return proxy
+}
+
+/**
  * 结束(销毁)不可变数据
  * @param proxy 
  */
