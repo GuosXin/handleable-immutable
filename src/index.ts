@@ -1,10 +1,10 @@
-const getIsImmutable = Symbol('isImmutable')
-const getBase = Symbol('base')
-const getCopy = Symbol('copy')
-const getParent = Symbol('parent')
-const getProp = Symbol('prop')
-const getRevoke = Symbol('revoke')
-const getHandler = Symbol('handler')
+const ISIMMUTABLE = Symbol('isImmutable')
+const BASE = Symbol('base')
+const COPY = Symbol('copy')
+const PARENT = Symbol('parent')
+const PROP = Symbol('prop')
+const REVOKE = Symbol('revoke')
+const HANDLER = Symbol('handler')
 
 /**
  * 判断是否需要进行拷贝
@@ -16,7 +16,7 @@ function isNeedToCopy(value: any){
     let referenceType = ['object']
     let type = typeof value
     if(value === null) return false
-    if(value[getIsImmutable]) return false
+    if(value[ISIMMUTABLE]) return false
     if(baseType.includes(type)) return false
     if(referenceType.includes(type)) return true
 }
@@ -50,30 +50,10 @@ export type Parent = {
     prop: any
 }
 export type CreateImmutable = (base: any, handler?: ImmutableHandler, parent?: Parent) => any
-export type CreateProxy = (base: any, handler?: ImmutableHandler) => any
 export let createImmutable: CreateImmutable = function(base, handler = { set: () => {}, get: () => {} }, parent = { receiver: null, prop: null }){
     if(!isNeedToCopy(base)){
         return base
     }
-
-    const createProxy: CreateProxy = function(base){
-        const { proxy, revoke } = Proxy.revocable(base, {
-            get: function(target, prop, receiver){
-                if(target.hasOwnProperty(prop) && !target[prop][getIsImmutable]){
-                    const p = { receiver: receiver, prop: prop }
-                    // 子属性的handler指向根属性的handler，这样就能通过根元素控制所有子属性的handler
-                    const handler = receiver[getHandler]
-                    target[prop] = createImmutable(target[prop], handler, p)
-                }
-                return Reflect.get(target, prop, receiver)
-            },
-            set: function(target, prop, newValue, receiver){
-                return Reflect.set(target, prop, newValue)
-            }
-        })
-        return { proxy, revoke }
-    }
-
     const copy = shallowCopy(base)
     const immutable = createProxy(copy)
     const source = {
@@ -84,58 +64,96 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
         prop: parent.prop,
         proxy: immutable.proxy,
         revoke: immutable.revoke,
-        handler: handler,
+        handler: handler
     }
     const { proxy, revoke } = Proxy.revocable(source, {
         get: function(target, prop, receiver){
-            if(prop === getIsImmutable){
-                return target.isImmutable
-            }
-            if(prop === getBase){
-                return target.base
-            }
-            if(prop === getCopy){
-                return target.copy
-            }
-            if(prop === getParent){
-                return target.parent
-            }
-            if(prop === getProp){
-                return target.prop
-            }
-            if(prop === getRevoke){
-                return target.revoke
-            }
-            if(prop === getHandler){
-                return target.handler
+            // 匹配target的prop属性
+            let res = matchTargetProp(target, prop)
+            if(res.match){
+                return res.value
             }
             // 执行getter
-            receiver[getHandler] && receiver[getHandler].get && receiver[getHandler].get(target, prop, receiver)
+            receiver[HANDLER] && receiver[HANDLER].get && receiver[HANDLER].get(target, prop, receiver)
             return Reflect.get(target.proxy, prop, receiver)
         },
         set: function(target, prop, newValue, receiver){
-            if(prop === getHandler){
+            if(prop === HANDLER){
                 return Reflect.set(target, 'handler', newValue)
             }
             // 值为不可变数据类型时，需要转换
             newValue = getImmutableCopy(newValue)
-            if(prop === getCopy){
+            if(prop === COPY){
                 return Reflect.set(target, 'copy', newValue)
             }
-            // 对应修改copy的值
-            receiver[getCopy][prop] = newValue
+            // 进行拷贝
+            receiver[COPY][prop] = newValue
             let obj = receiver
-            while(obj[getParent]){
-                obj[getParent][getCopy] = Object.assign(obj[getParent][getCopy], { [obj[getProp]]: obj[getCopy] })
-                obj = obj[getParent]
+            while(obj[PARENT]){
+                obj[PARENT][COPY] = Object.assign(obj[PARENT][COPY], { [obj[PROP]]: obj[COPY] })
+                obj = obj[PARENT]
             }
             // 执行setter
-            receiver[getHandler] && receiver[getHandler].set && receiver[getHandler].set(target, prop, newValue, receiver)
-            return Reflect.set(target.proxy, prop, newValue)
+            receiver[HANDLER] && receiver[HANDLER].set && receiver[HANDLER].set(target, prop, newValue, receiver)
+            return Reflect.set(target.proxy, prop, newValue, target.proxy)
         }
     })
 
     return proxy
+}
+
+/**
+ * 递归创建代理对象
+ * @param base 
+ * @param handler 
+ * @returns 
+ */
+function createProxy(base: any): any{
+    const { proxy, revoke } = Proxy.revocable(base, {
+        get: function(target, prop, receiver){
+            if(target.hasOwnProperty(prop) && !target[prop][ISIMMUTABLE]){
+                const p = { receiver: receiver, prop: prop }
+                // 子属性的handler指向根属性的handler，这样就能通过根元素控制所有子属性的handler
+                const handler = receiver[HANDLER]
+                target[prop] = createImmutable(target[prop], handler, p)
+            }
+            return Reflect.get(target, prop, receiver)
+        },
+        set: function(target, prop, newValue, receiver){
+            return Reflect.set(target, prop, newValue, receiver)
+        }
+    })
+    return { proxy, revoke }
+}
+
+/**
+ * 匹配target的prop属性
+ * @param {*} target
+ * @param {string|synmbol} prop
+ * @returns
+ */
+function matchTargetProp(target: any, prop: string | symbol){
+    // 将要返回的值
+    let result = {
+        match: false,
+        value: null as any
+    }
+    // 匹配数据
+    let props: any = {
+        [<symbol>ISIMMUTABLE]: 'isImmutable',
+        [<symbol>BASE]: 'base',
+        [<symbol>COPY]: 'copy',
+        [<symbol>PARENT]: 'parent',
+        [<symbol>PROP]: 'prop',
+        [<symbol>REVOKE]: 'revoke',
+        [<symbol>HANDLER]: 'handler'
+    }
+    // 进行匹配
+    if(props[prop]){
+        result.match = true
+        result.value = target[props[prop]]
+    }
+    return result
 }
 
 /**
@@ -144,35 +162,35 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
  * @returns 
  */
 export function getImmutableCopy(proxy: any){
-    if(proxy[getIsImmutable]){
-        return proxy[getCopy]
+    if(proxy[ISIMMUTABLE]){
+        return proxy[COPY]
     }
     return proxy
 }
 
-/**
- * 获取原数据
- * @param proxy 
- * @returns 
- */
-export function getImmutableBase(proxy: any){
-    if(proxy[getIsImmutable]){
-        return proxy[getBase]
-    }
-    return proxy
-}
+// /**
+//  * 获取原数据
+//  * @param proxy 
+//  * @returns 
+//  */
+// export function getImmutableBase(proxy: any){
+//     if(proxy[getIsImmutable]){
+//         return proxy[getBase]
+//     }
+//     return proxy
+// }
 
-/**
- * 获取父节点
- * @param proxy 
- * @returns 
- */
-export function getImmutableParent(proxy: any){
-    if(proxy[getIsImmutable]){
-        return proxy[getParent]
-    }
-    return proxy
-}
+// /**
+//  * 获取父节点
+//  * @param proxy 
+//  * @returns 
+//  */
+// export function getImmutableParent(proxy: any){
+//     if(proxy[getIsImmutable]){
+//         return proxy[getParent]
+//     }
+//     return proxy
+// }
 
 /**
  * 结束(销毁)不可变数据
@@ -184,8 +202,8 @@ export function getImmutableParent(proxy: any){
  * 注入getter、setter
  */
 export function setHandler(proxy: any, handler?: ImmutableHandler){
-    if(proxy[getIsImmutable]){
-        proxy[getHandler].get = handler && handler.get || proxy[getHandler].get
-        proxy[getHandler].set = handler && handler.set || proxy[getHandler].set
+    if(proxy[ISIMMUTABLE]){
+        proxy[HANDLER].get = handler && handler.get || proxy[HANDLER].get
+        proxy[HANDLER].set = handler && handler.set || proxy[HANDLER].set
     }
 }
