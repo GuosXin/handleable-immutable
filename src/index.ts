@@ -75,30 +75,26 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
     }
     const { proxy, revoke } = Proxy.revocable(source, {
         get: function(target, prop, receiver){
-            // 匹配target的prop属性
-            let res = matchTargetProp(target, prop)
-            // 匹配到则返回对应的值
-            if(res.match){
-                return res.value
-            }
+            if(prop === ISIMMUTABLE) return target.isImmutable
+            if(prop === BASE) return target.base
+            if(prop === COPY) return target.copy
+            if(prop === PARENT) return target.parent
+            if(prop === PROP) return target.prop
+            if(prop === REVOKE) return target.revoke
+            if(prop === HANDLER) return target.handler
+            if(prop === SETLOG) return target.setLog
             // 执行getter
-            // receiver[HANDLER] && receiver[HANDLER].get && receiver[HANDLER].get(target, prop, receiver)
+            receiver[HANDLER] && receiver[HANDLER].get && receiver[HANDLER].get(target, prop, receiver)
             return Reflect.get(target.proxy, prop, receiver)
         },
         set: function(target, prop, newValue, receiver){
-            if(prop === HANDLER){
-                return Reflect.set(target, 'handler', newValue)
-            }
-            if(prop === SETLOG){
-                return Reflect.set(target, 'setLog', newValue)
-            }
-            if(prop === COPY){
-                return Reflect.set(target, 'copy', newValue)
-            }
+            if(prop === HANDLER) return Reflect.set(target, 'handler', newValue)
+            if(prop === SETLOG) return Reflect.set(target, 'setLog', newValue)
+            if(prop === COPY) return Reflect.set(target, 'copy', newValue)
             // 记录草稿
             receiver[SETLOG].push({receiver, prop, newValue})
             // 执行setter
-            // receiver[HANDLER] && receiver[HANDLER].set && receiver[HANDLER].set(target, prop, newValue, receiver)
+            receiver[HANDLER] && receiver[HANDLER].set && receiver[HANDLER].set(target, prop, newValue, receiver)
             return Reflect.set(target.proxy, prop, newValue, target.proxy)
         }
     })
@@ -128,37 +124,6 @@ function createProxy(base: any): any{
         }
     })
     return { proxy, revoke }
-}
-
-/**
- * 匹配target的prop属性
- * @param {*} target
- * @param {string|synmbol} prop
- * @returns
- */
-function matchTargetProp(target: any, prop: string | symbol){
-    // 将要返回的值
-    let result = {
-        match: false,
-        value: null as any
-    }
-    // 匹配数据
-    let props: any = {
-        [<symbol>ISIMMUTABLE]: 'isImmutable',
-        [<symbol>BASE]: 'base',
-        [<symbol>COPY]: 'copy',
-        [<symbol>PARENT]: 'parent',
-        [<symbol>PROP]: 'prop',
-        [<symbol>REVOKE]: 'revoke',
-        [<symbol>HANDLER]: 'handler',
-        [<symbol>SETLOG]: 'setLog'
-    }
-    // 进行匹配
-    if(props[prop]){
-        result.match = true
-        result.value = target[props[prop]]
-    }
-    return result
 }
 
 /**
@@ -225,29 +190,29 @@ function copyPath(receiver: any){
     return receiver
 }
 
-// /**
-//  * 获取原数据
-//  * @param proxy 
-//  * @returns 
-//  */
-// export function getImmutableBase(proxy: any){
-//     if(proxy[getIsImmutable]){
-//         return proxy[getBase]
-//     }
-//     return proxy
-// }
+/**
+ * 获取原数据
+ * @param proxy 
+ * @returns 
+ */
+export function getImmutableBase(proxy: any){
+    if(proxy && proxy[ISIMMUTABLE]){
+        return proxy[BASE]
+    }
+    return proxy
+}
 
-// /**
-//  * 获取父节点
-//  * @param proxy 
-//  * @returns 
-//  */
-// export function getImmutableParent(proxy: any){
-//     if(proxy[getIsImmutable]){
-//         return proxy[getParent]
-//     }
-//     return proxy
-// }
+/**
+ * 获取父节点
+ * @param proxy 
+ * @returns 
+ */
+export function getImmutableParent(proxy: any){
+    if(proxy && proxy[ISIMMUTABLE]){
+        return proxy[PARENT]
+    }
+    return proxy
+}
 
 /**
  * 结束(销毁)不可变数据
