@@ -13,11 +13,12 @@ const state = {
         proxy: 1
     },
 }
-const immer = createImmutable(state)
-immer.a.b.push(123)
-immer.a.c.d.f = 666
-immer.a.c=immer.a
-console.log(state, getImmutableCopy(immer))
+// const immer = createImmutable(state)
+// // immer.a.b.push(123)
+// // immer.a.c.d.f = 666
+// immer.a.c = immer.a
+// const copy = getImmutableCopy(immer)
+// console.log(state, copy)
 
 
 
@@ -60,6 +61,7 @@ console.log(state, getImmutableCopy(immer))
 // immer.a = 1
 // console.log(immer, getImmutableCopy(immer), state)
 
+
 // console.time('create')
 // const dataSource = Object.fromEntries(
 //   [...Array(4000).keys()].map(key => [key, {key, data: {value: key}}])
@@ -70,5 +72,22 @@ console.log(state, getImmutableCopy(immer))
 // console.time('update');
 // const proxy = createImmutable(dataSource)
 // proxy[1000].data.value = 100;
-// getClone(proxy)
+// getImmutableCopy(proxy)
 // console.timeEnd('update');
+
+
+
+console.time('create')
+const dataSource = Object.fromEntries(
+  [...Array(4000).keys()].map(key => [key, {key, data: {value: key}}])
+)
+console.log(dataSource)
+console.timeEnd('create')
+
+console.time('update');
+const proxy = createImmutable(dataSource)
+for(let i = 0; i < 1000000; i++){
+  proxy[1000].data.value = i;
+}
+getImmutableCopy(proxy)
+console.timeEnd('update');
