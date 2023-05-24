@@ -5,6 +5,7 @@ const PARENT = Symbol('parent')
 const PROP = Symbol('prop')
 const REVOKE = Symbol('revoke')
 const HANDLER = Symbol('handler')
+const SETLOG = Symbol('setLog')
 
 /**
  * 判断是否需要进行拷贝
@@ -50,6 +51,11 @@ export type Parent = {
     prop: any
 }
 export type CreateImmutable = (base: any, handler?: ImmutableHandler, parent?: Parent) => any
+export type SetLogType = {
+    receiver: any,
+    prop: string | symbol,
+    newValue: any
+}
 export let createImmutable: CreateImmutable = function(base, handler = { set: () => {}, get: () => {} }, parent = { receiver: null, prop: null }){
     if(!isNeedToCopy(base)){
         return base
@@ -59,12 +65,14 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
     const source = {
         isImmutable: true,
         base,
-        copy: shallowCopy(base),
+        // copy: parent.receiver ? parent.receiver[BASE] : null,
+        copy: base,
         parent: parent.receiver,
         prop: parent.prop,
         proxy: immutable.proxy,
         revoke: immutable.revoke,
-        handler: handler
+        handler: handler,
+        setLog: parent.receiver ? parent.receiver[SETLOG] : []
     }
     const { proxy, revoke } = Proxy.revocable(source, {
         get: function(target, prop, receiver){
@@ -87,12 +95,14 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
                 return Reflect.set(target, 'copy', newValue)
             }
             // 进行拷贝
-            receiver[COPY][prop] = newValue
-            let obj = receiver
-            while(obj[PARENT]){
-                obj[PARENT][COPY] = Object.assign(obj[PARENT][COPY], { [obj[PROP]]: obj[COPY] })
-                obj = obj[PARENT]
-            }
+            // receiver[COPY][prop] = newValue
+            // let obj = receiver
+            // while(obj[PARENT]){
+            //     obj[PARENT][COPY] = Object.assign(obj[PARENT][COPY], { [obj[PROP]]: obj[COPY] })
+            //     obj = obj[PARENT]
+            // }
+            receiver[SETLOG].push({receiver, prop, newValue})
+            // console.log(receiver)
             // 执行setter
             receiver[HANDLER] && receiver[HANDLER].set && receiver[HANDLER].set(target, prop, newValue, receiver)
             return Reflect.set(target.proxy, prop, newValue, target.proxy)
@@ -146,7 +156,8 @@ function matchTargetProp(target: any, prop: string | symbol){
         [<symbol>PARENT]: 'parent',
         [<symbol>PROP]: 'prop',
         [<symbol>REVOKE]: 'revoke',
-        [<symbol>HANDLER]: 'handler'
+        [<symbol>HANDLER]: 'handler',
+        [<symbol>SETLOG]: 'setLog'
     }
     // 进行匹配
     if(props[prop]){
@@ -163,6 +174,28 @@ function matchTargetProp(target: any, prop: string | symbol){
  */
 export function getImmutableCopy(proxy: any){
     if(proxy[ISIMMUTABLE]){
+        let setLog = proxy[SETLOG]
+        setLog.forEach((item: SetLogType) => {
+            const { receiver, prop, newValue } = item
+            // 路径拷贝
+            let r = receiver
+            let lock = true
+            while(r){
+                let copy = shallowCopy(r[COPY])
+                // 上锁，只有叶子节点需要赋值
+                if(lock){
+                    copy[prop] = newValue
+                    lock = false
+                }
+                r[COPY] = copy
+                // 向上拷贝
+                if(r[PARENT]){
+                    r[PARENT][COPY] = shallowCopy(r[PARENT][COPY])
+                    r[PARENT][COPY][r[PROP]] = r[COPY]
+                }
+                r = r[PARENT]
+            }
+        })
         return proxy[COPY]
     }
     return proxy

@@ -13,6 +13,14 @@ const state = {
         proxy: 1
     },
 }
+const immer = createImmutable(state)
+immer.a.b.push(123)
+immer.a.c.d.f = 666
+immer.a.c=immer.a
+console.log(state, getImmutableCopy(immer))
+
+
+
 // const immer = createImmutable(state)
 // let t = immer.a.b
 // immer.a.c = t
@@ -32,24 +40,24 @@ const state = {
 // console.log(immer, immer.a.proxy, immer.a.b)
 
 
-const immer = createImmutable(state, {
-  get(){
-    console.log('触发getter')
-  },
-  set(){
-    console.log('触发setter')
-  }
-})
-immer.a.b
-setHandler(immer, {
-  get(){
-    console.log('触发setHandle的给getter')
-  },
-  set(){
-    console.log('触发setHandle的setter')
-  }
-})
-immer.a = 1
+// const immer = createImmutable(state, {
+//   get(){
+//     console.log('触发getter')
+//   },
+//   set(){
+//     console.log('触发setter')
+//   }
+// })
+// immer.a.b
+// setHandler(immer, {
+//   get(){
+//     console.log('触发setHandle的给getter')
+//   },
+//   set(){
+//     console.log('触发setHandle的setter')
+//   }
+// })
+// immer.a = 1
 // console.log(immer, getImmutableCopy(immer), state)
 
 // console.time('create')
