@@ -1,0 +1,24 @@
+{
+    "name": "handleable-immutable",
+    "version": "1.2.0",
+    "description": "可进行拦截操作的不可变数据结构",
+    "main": "index.js",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/GuosXin/handleable-immutable.git"
+    },
+    "keywords": [
+        "handleable-immutable",
+        "handleable",
+        "immer",
+        "immutable",
+        "handleable-immer"
+    ],
+    "author": "",
+    "license": "MIT",
+    "types": "./index.d.ts",
+    "bugs": {
+      "url": "https://github.com/GuosXin/handleable-immutable/issues"
+    },
+    "homepage": "https://github.com/GuosXin/handleable-immutable#readme"
+}
