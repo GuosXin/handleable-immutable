@@ -26,6 +26,12 @@ export declare let createImmutable: CreateImmutable;
  */
 export declare function getImmutableCopy(proxy: any): any;
 /**
+ * 获取target
+ * @param proxy
+ * @returns
+ */
+export declare function getImmutableTarget(proxy: any): any;
+/**
  * 获取原数据
  * @param proxy
  * @returns

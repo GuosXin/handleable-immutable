@@ -1,6 +1,6 @@
 {
     "name": "handleable-immutable",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "可进行拦截操作的不可变数据结构",
     "main": "index.js",
     "repository": {
