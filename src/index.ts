@@ -84,7 +84,8 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
             if(prop === HANDLER) return target.handler
             if(prop === SETLOG) return target.setLog
             // 执行getter
-            receiver[HANDLER] && receiver[HANDLER].get && receiver[HANDLER].get(target, prop, receiver)
+            let handler = receiver[HANDLER]
+            handler && handler.get && handler.get(target, prop, receiver)
             return Reflect.get(target.proxy, prop, receiver)
         },
         set: function(target, prop, newValue, receiver){
@@ -94,7 +95,8 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
             // 记录草稿
             receiver[SETLOG].push({receiver, prop, newValue})
             // 执行setter
-            receiver[HANDLER] && receiver[HANDLER].set && receiver[HANDLER].set(target, prop, newValue, receiver)
+            let handler = receiver[HANDLER]
+            handler && handler.set && handler.set(target, prop, newValue, receiver)
             return Reflect.set(target.proxy, prop, newValue, target.proxy)
         }
     })
@@ -160,23 +162,26 @@ export function getImmutableCopy(proxy: any){
  * @returns 
  */
 function copyPath(receiver: any){
+    const parent = receiver[PARENT]
+    const copy = receiver[COPY]
+    const base = receiver[BASE]
     // 如果已经到根节点，提前结束
     if(
         !receiver || 
-        (!receiver[PARENT] && receiver[COPY] !== receiver[BASE])
+        (!parent && copy !== base)
     ){
         return receiver
     }
     // 如果已经拷贝过了，提前结束
     if(
-        receiver[COPY] !== receiver[BASE] &&
-        receiver[PARENT] &&
-        receiver[PARENT][COPY] !== receiver[PARENT][BASE]
+        copy !== base &&
+        parent &&
+        parent[COPY] !== parent[BASE]
     ){
-        receiver[PARENT][COPY][receiver[PROP]] = receiver[COPY]
+        parent[COPY][receiver[PROP]] = copy
         return receiver
     }
-    // 拷贝叶子节点
+    // 拷贝当前节点
     let r = receiver
     if(r[COPY] === r[BASE]){
         r[COPY] = shallowCopy(r[COPY])

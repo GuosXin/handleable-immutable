@@ -1,22 +1,24 @@
 // @ts-nocheck
 import { createImmutable, getImmutableCopy, setHandler} from '../index'
 
-let obj = {
-    d: {
-      f: 2
-    }
-  }
-const state = {
-    a: {
-        b: [obj],
-        c: obj,
-        proxy: 1
-    },
-}
+// let obj = {
+//     d: {
+//       f: 2
+//     }
+//   }
+// const state = {
+//     a: {
+//         b: [obj],
+//         c: obj,
+//         proxy: 1
+//     },
+// }
 // const immer = createImmutable(state)
+// const immer2 = createImmutable(state)
 // // immer.a.b.push(123)
 // // immer.a.c.d.f = 666
-// immer.a.c = immer.a
+// immer2.a.b = 123
+// immer.a.c = immer2.a
 // const copy = getImmutableCopy(immer)
 // console.log(state, copy)
 
