@@ -88,7 +88,7 @@ export let createImmutable: CreateImmutable = function(base, handler = { set: ()
 }
 
 /**
- * 递归创建代理对象
+ * 递归创建代理对象（此处仍有优化空间，需要重构，去除该方法）
  * @param base 
  * @param handler 
  * @returns 
