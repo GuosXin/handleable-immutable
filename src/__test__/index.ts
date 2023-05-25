@@ -14,11 +14,12 @@ import { createImmutable, getImmutableCopy, setHandler} from '../index'
 //     },
 // }
 // const immer = createImmutable(state)
-// const immer2 = createImmutable(state)
+// // const immer2 = createImmutable(state)
 // // immer.a.b.push(123)
 // // immer.a.c.d.f = 666
-// immer2.a.b = 123
-// immer.a.c = immer2.a
+// // immer2.a.b = 123
+// // immer.a.c = immer2.a
+// immer.a.c = immer.a
 // const copy = getImmutableCopy(immer)
 // console.log(state, copy)
 
